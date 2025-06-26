@@ -10,3 +10,8 @@ plyer	Cross-platform desktop notifications
 schedule	Scheduling periodic alert checks
 pystray	System tray icon & menu
 pillow	For tray icon image creation
+
+
+
+If you want your county added, message me on discord.
+4.shl3y. (yes theres a dot at the end.)
