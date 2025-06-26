@@ -1,24 +1,22 @@
+import os
+import sys
 import requests
 import schedule
 import time
-from plyer import notification
-from datetime import datetime
 import threading
+from datetime import datetime
+from plyer import notification
 from pystray import Icon, Menu, MenuItem
 from PIL import Image, ImageDraw
-import sys
-import os
 import tkinter as tk
 from tkinter import scrolledtext
 import platform
 
-if platform.system() == "Windows":
-    import winsound
+# Allegany County identifiers
+ALLEGANY_FIPS = "42003"
+ALLEGANY_ZONE = "PAZ003"
 
 exit_app = False
-
-ALLEGHENY_FIPS = "42003"     # FIPS code for Allegheny County, PA
-ALLEGHENY_ZONE = "PAZ021"    # Forecast zone for Allegheny County, PA
 
 def show_alert_popup(title, full_text):
     def popup():
@@ -26,27 +24,17 @@ def show_alert_popup(title, full_text):
         root.title(title)
         root.geometry("500x300")
         root.attributes('-topmost', True)
-
         text_area = scrolledtext.ScrolledText(root, wrap=tk.WORD)
         text_area.pack(expand=True, fill='both')
         text_area.insert(tk.END, full_text)
         text_area.configure(state='disabled')
-
         root.mainloop()
-
     threading.Thread(target=popup, daemon=True).start()
-
-def play_alert_sound():
-    if platform.system() == "Windows":
-        winsound.PlaySound("SystemExclamation", winsound.SND_ALIAS)
-    else:
-        print('\a')
 
 def check_weather_alerts():
     print(f"[{datetime.now()}] Checking for alerts...")
     url = "https://api.weather.gov/alerts/active"
     headers = {'User-Agent': 'weather-alert-app'}
-
     try:
         response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
@@ -57,28 +45,47 @@ def check_weather_alerts():
             for alert_feature in data['features']:
                 alert = alert_feature['properties']
 
+                # Filter to only alerts from NWS Pittsburgh
+                sender = alert.get("sender", "").lower()
+                sender_name = alert.get("senderName", "").lower()
+                if ("pbg" not in sender) and ("pittsburgh" not in sender_name):
+                    print(f"[{datetime.now()}] Skipped alert not from NWS Pittsburgh (sender: {sender_name})")
+                    continue
+
                 geocode = alert.get('geocode', {})
-                fips_list = geocode.get('FIPS6', [])
-                zone_list = geocode.get('UGC', [])
+                fips_list = geocode.get('FIPS6', []) or []
+                zone_list = geocode.get('UGC', []) or []
+                affected_zones = alert.get('affectedZones', []) or []
 
-                if ALLEGHENY_FIPS in fips_list or ALLEGHENY_ZONE in zone_list:
-                    full_title = alert['headline']
+                headline = alert.get('headline') or ''
+                description = alert.get('description') or ''
+                combined_text = (headline + description).lower()
+
+                print(f"Alert headline: {headline}")
+                print(f"Sender: {sender_name}")
+                print(f"FIPS: {fips_list}")
+                print(f"Zones: {zone_list}")
+                print(f"Affected Zones: {affected_zones}")
+
+                if (ALLEGANY_FIPS in fips_list or 
+                    ALLEGANY_ZONE in zone_list or
+                    any(ALLEGANY_ZONE in zone for zone in affected_zones) or
+                    "allegany" in combined_text):
+
+                    full_title = headline
                     safe_title = full_title[:48]
-
-                    description = alert['description']
-                    message = (description[:253] + "...") if len(description) > 256 else description
+                    message_text = description[:253] + "..." if len(description) > 256 else description
 
                     print(f"🔔 ALERT: {full_title}")
                     notification.notify(
                         title=f"Weather Alert: {safe_title}",
-                        message=message,
+                        message=message_text,
                         timeout=15
                     )
-                    play_alert_sound()
                     show_alert_popup(full_title, description)
                     time.sleep(2)
                 else:
-                    print(f"[{datetime.now()}] Skipped alert not for Allegheny County.")
+                    print(f"[{datetime.now()}] Skipped alert not specific to Allegany County.")
         else:
             print(f"[{datetime.now()}] No active alerts.")
     except Exception as e:
@@ -100,15 +107,15 @@ def quit_app(icon, item):
 
 def create_icon():
     icon_size = 64
-    image = Image.new('RGB', (icon_size, icon_size), (30, 30, 30))
+    image = Image.new('RGB', (icon_size, icon_size), (0, 0, 0))
     draw = ImageDraw.Draw(image)
-    draw.ellipse((16, 16, 48, 48), fill=(255, 0, 0))  # red circle
+    draw.ellipse((16, 16, 48, 48), fill=(255, 0, 0))  # Red circle icon
     return image
 
 def setup_tray():
     icon_image = create_icon()
     menu = Menu(MenuItem('Quit', quit_app))
-    tray_icon = Icon("Weather Alert", icon_image, "Allegheny Alerts", menu)
+    tray_icon = Icon("Weather Alert", icon_image, "Allegany Weather Alerts", menu)
     tray_icon.run()
 
 def main():
