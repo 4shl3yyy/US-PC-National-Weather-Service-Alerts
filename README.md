@@ -1,17 +1,9 @@
 # US-PC-National-Weather-Service-Alerts
 Alerts you when the National Weather Service issues a warning for a county.
 
- Required Python Packages
-You must install these packages with pip:
-
-Package	Purpose
-requests	HTTP requests to fetch weather alerts
-plyer	Cross-platform desktop notifications
-schedule	Scheduling periodic alert checks
-pystray	System tray icon & menu
-pillow	For tray icon image creation
+*Please DM me on discord, I stopped updating these and they are all mostly broken!*
 
 
 
 If you want your county added, message me on discord.
-4.shl3y. (yes theres a dot at the end.)
+4_shl3
